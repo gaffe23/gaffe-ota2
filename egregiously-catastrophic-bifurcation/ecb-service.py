@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-import os, socket, threading, sys, errno, time, random, string
+import os, socket, multiprocessing, sys, errno, time, random, string
 from Crypto.Cipher import AES
 
-PORTNUM = 12734
+PORTNUM = 12735
 SIMULTANEOUS_CONNS = 10
 FLAG = "flag{I_s33_p3ngu1ns}"
 
@@ -59,33 +59,43 @@ def do_encrypt(input, clientkey):
     return encryptECB(plaintext, clientkey).encode('hex')
     pass   
 
-def client_thread(s):
+def log_msg(clientinfo, msg):
+    print "%s <%s:%s> %s" % (time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), clientinfo[0], clientinfo[1], msg)
+
+def client_process(s):
     clientkey = os.urandom(16)
     s.setblocking(0)
     clientinfo = s.getpeername()
-    print "connection from", clientinfo
+    log_msg(clientinfo, "connected")
     while 1:
         time.sleep(1)
         try:
             buf = s.recv(2048).rstrip().split('\n')
             for line in buf:
-                print "%s: \"%s\"" % (clientinfo, line)
+                log_msg(clientinfo, "\"%s\"" % line.encode('hex'))
                 s.send(do_encrypt(line, clientkey) + "\n")
         except socket.error as e:
             if e.errno is errno.EAGAIN:
                 continue
-            print "connection closed by", clientinfo
+            log_msg(clientinfo, "disconnected")
             s.close()
             break
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setblocking(0)
 #s.bind((socket.gethostname(), PORTNUM))
 s.bind(('localhost', PORTNUM))
 s.listen(SIMULTANEOUS_CONNS)
 print "listening on port %d..." % PORTNUM
 
 while 1:
-    (clientsocket, address) = s.accept()
-    newclient = threading.Thread(target = client_thread, args = (clientsocket, ))
-    newclient.start()
-    newclient.join()
+    try:
+        (clientsocket, address) = s.accept()
+        newclient = multiprocessing.Process(target = client_process, args = (clientsocket, ))
+        newclient.start()
+    except socket.error as e:
+        if e.errno is errno.EAGAIN:
+            continue
+        print "bye"
+        s.close()
+        break
