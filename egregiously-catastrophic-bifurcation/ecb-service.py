@@ -1,25 +1,34 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 
-import os, socket, multiprocessing, sys, errno, time, random, string
+import os, socket, multiprocessing, time, random
 from Crypto.Cipher import AES
 
-PORTNUM = 12734
-SIMULTANEOUS_CONNS = 10
+# ratelimit in seconds
+RATELIMIT = 0
+PORT_NUMBER = 12734
+SIMULTANEOUS_CONNS = 20
 FLAG = "flag{I_s33_p3NGu1ns}"
-RATELIMIT = 0.025
 
 def blockify(data, blocksize=16):
-  blocks = []
+    """break data up into blocks. default block size is 16 bytes (for AES
+    128)."""
 
-  for i in xrange(0, len(data), blocksize):
-    blocks.append(data[i:i+blocksize])
+    blocks = []
 
-  return blocks
+    for i in xrange(0, len(data), blocksize):
+        blocks.append(data[i:i+blocksize])
+
+    return blocks
 
 def deblockify(data):
-  return "".join(block for block in data)
+    """take data that's been split up into blocks and concatenate the blocks
+    together into one big chunk of data."""
+    return "".join(block for block in data)
 
 def pkcs7(plaintext, blocksize=16):
+    """apply pkcs7 padding to a plaintext to make it a suitable input to a
+    block cipher."""
+
     # rfc5652: "This padding method is well defined if and only if k is less than 256."
     if blocksize > 0xff:
         return
@@ -40,37 +49,50 @@ def pkcs7(plaintext, blocksize=16):
     return plaintext
 
 def encryptECB(plaintext, key):
-  if len(plaintext) % 16 != 0:
-    plaintext = pkcs7(plaintext)
+    """encrypt with AES 128 ECB. padding is automatically applied if the length
+    of the given plaintext is not a multiple of 16 bytes."""
 
-  cipher = AES.new(key, AES.MODE_ECB)
+    if len(plaintext) % 16 != 0:
+        plaintext = pkcs7(plaintext)
 
-  plaintextblocks = blockify(plaintext, 16)
+    cipher = AES.new(key, AES.MODE_ECB)
 
-  ciphertextblocks = []
-  for plaintextblock in plaintextblocks:
-    ciphertextblock = cipher.encrypt(plaintextblock)
-    ciphertextblocks.append(ciphertextblock)
+    plaintextblocks = blockify(plaintext, 16)
 
-  return deblockify(ciphertextblocks)
+    ciphertextblocks = []
+    for plaintextblock in plaintextblocks:
+        ciphertextblock = cipher.encrypt(plaintextblock)
+        ciphertextblocks.append(ciphertextblock)
+
+    return deblockify(ciphertextblocks)
     
 
 def do_encrypt(prefix, input, clientkey):
+    """encrypt a client's input, prepended with their random prefix and
+    appended with the flag."""
     plaintext = prefix + input + FLAG
     return encryptECB(plaintext, clientkey).encode('hex')
 
 def log_msg(clientinfo, msg):
+    """log current time, client info, and status messages."""
     print "%s <%s:%s> %s" % (time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), clientinfo[0], clientinfo[1], msg)
 
 def client_process(s):
+    """handle client connection. loop infinitely, accepting client input and
+    providing the client with ECB encryptions of their input under the same key
+    each time. each input will be prepended with a chunk of random data and
+    appended with the flag, and then encrypted to produce the ciphertext to
+    send back to the client. a new random key and prefix are generated for each
+    new connection, which prevents a multi-threaded solution."""
+
     clientkey = os.urandom(16)
     clientinfo = s.getpeername()
     clientprefix = os.urandom(random.randint(32,64)).encode('hex')
     log_msg(clientinfo, "connected")
+
     while 1:
         time.sleep(RATELIMIT)
         buf = s.recv(2048).rstrip().split('\n')
-
         try:
             for line in buf:
                 log_msg(clientinfo, "\"%s\"" % blockify(line.encode('hex'), 32))
@@ -81,13 +103,14 @@ def client_process(s):
             s.close()
             break
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#s.bind((socket.gethostname(), PORTNUM))
-s.bind(('localhost', PORTNUM))
-s.listen(SIMULTANEOUS_CONNS)
-print "listening on port %d..." % PORTNUM
+if __name__ == "__main__":
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind((socket.gethostname(), PORT_NUMBER))
+    s.listen(SIMULTANEOUS_CONNS)
+    print "listening on %s:%d..." % (socket.gethostbyname(socket.gethostname()), PORT_NUMBER)
 
-while 1:
-    (clientsocket, address) = s.accept()
-    newclient = multiprocessing.Process(target = client_process, args = (clientsocket, ))
-    newclient.start()
+    # fork off a new process for each connection
+    while 1:
+        (clientsocket, address) = s.accept()
+        newclient = multiprocessing.Process(target = client_process, args = (clientsocket, ))
+        newclient.start()
