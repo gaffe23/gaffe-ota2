@@ -3,10 +3,14 @@
 import os, socket, multiprocessing, time, random
 from Crypto.Cipher import AES
 
-# ratelimit in seconds
-RATELIMIT = 0
+# ratelimit, in seconds
+RATELIMIT = 0.01
+
+# maximum amount of time a client can stay connected, in seconds
+MAX_CONN_TIME = 3 * 60
+
 PORT_NUMBER = 12734
-SIMULTANEOUS_CONNS = 20
+NUM_SIMULTANEOUS_CONNS = 20
 FLAG = "flag{I_s33_p3NGu1ns}"
 
 def blockify(data, blocksize=16):
@@ -88,9 +92,10 @@ def client_process(s):
     clientkey = os.urandom(16)
     clientinfo = s.getpeername()
     clientprefix = os.urandom(random.randint(32,64)).encode('hex')
+    connstart = time.time()
     log_msg(clientinfo, "connected")
 
-    while 1:
+    while time.time() - connstart < MAX_CONN_TIME:
         time.sleep(RATELIMIT)
         buf = s.recv(2048).rstrip().split('\n')
         try:
@@ -99,14 +104,15 @@ def client_process(s):
                 ciphertext = do_encrypt(clientprefix, line, clientkey)
                 s.send(ciphertext + "\n")
         except:
-            log_msg(clientinfo, "disconnected")
-            s.close()
             break
+
+    log_msg(clientinfo, "disconnected after %f seconds" % (time.time() - connstart))
+    s.close()
 
 if __name__ == "__main__":
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((socket.gethostname(), PORT_NUMBER))
-    s.listen(SIMULTANEOUS_CONNS)
+    s.listen(NUM_SIMULTANEOUS_CONNS)
     print "listening on %s:%d..." % (socket.gethostbyname(socket.gethostname()), PORT_NUMBER)
 
     # fork off a new process for each connection
