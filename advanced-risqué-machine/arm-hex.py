@@ -30,7 +30,7 @@ out.write("""\";
 unsigned char randomdata[] = \"""")
 
 for c in randomdata:
-    out.write("\\x%s" % c.encode('hex'))
+  out.write("\\x%s" % c.encode('hex'))
 
 out.write("""\";
 
@@ -50,15 +50,15 @@ void printjunk(int offset)
 
 void ptrace_write(int pid, unsigned long addr, void *vptr, int len)
 {
-    int byteCount = 0;
-    long word = 0;
+  int byteCount = 0;
+  long word = 0;
 
-    while (byteCount < len)
-    {
-        memcpy(&word, vptr + byteCount, sizeof(word));
-        word = ptrace(PTRACE_POKETEXT, pid, addr + byteCount, word);
-        byteCount += sizeof(word);
-    }
+  while (byteCount < len)
+  {
+    memcpy(&word, vptr + byteCount, sizeof(word));
+    word = ptrace(PTRACE_POKETEXT, pid, addr + byteCount, word);
+    byteCount += sizeof(word);
+  }
 }
 
 void alarmhandler(int sig)
@@ -84,7 +84,7 @@ void usr1handler(int sig)
   signal(SIGUSR1, SIG_IGN);
   for(int i = 0; i < sizeof(randomdata); i++)
   {
-      armcode[i] ^= randomdata[i];
+    armcode[i] ^= randomdata[i];
   }
   raise(SIGILL);
 }
