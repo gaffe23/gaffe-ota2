@@ -36,7 +36,7 @@ out.write("""\";
 
 void printarmhex(int offset)
 {
-  unsigned char current = armcode[offset] ^ randomdata[offset];
+  unsigned char current = armcode[offset];
   current ^= 0xcc;
   printf("%02x", current);
 }
@@ -61,15 +61,40 @@ void ptrace_write(int pid, unsigned long addr, void *vptr, int len)
     }
 }
 
-void signalhandler(int sig)
+void alarmhandler(int sig)
 {
-    signal(SIGALRM, SIG_IGN);
-    raise(SIGSEGV);
+  signal(SIGALRM, SIG_IGN);
+  raise(SIGPIPE);
+}
+
+void pipehandler(int sig)
+{
+  signal(SIGPIPE, SIG_IGN);
+  raise(SIGUSR2);
+}
+
+void usr2handler(int sig)
+{
+  signal(SIGUSR2, SIG_IGN);
+  raise(SIGUSR1);
+}
+
+void usr1handler(int sig)
+{
+  signal(SIGUSR1, SIG_IGN);
+  for(int i = 0; i < sizeof(randomdata); i++)
+  {
+      armcode[i] ^= randomdata[i];
+  }
+  raise(SIGILL);
 }
 
 int main()
 {
-  signal(SIGALRM, signalhandler);
+  signal(SIGALRM, alarmhandler);
+  signal(SIGPIPE, pipehandler);
+  signal(SIGUSR2, usr2handler);
+  signal(SIGUSR1, usr1handler);
   raise(SIGALRM);
 
   pid_t f = fork();
