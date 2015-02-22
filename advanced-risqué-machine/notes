@@ -1,0 +1,2 @@
+how to run the arm binary:
+qemu-arm-static -L /usr/arm-linux-gnueabi ./arm
