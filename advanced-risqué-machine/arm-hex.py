@@ -34,17 +34,29 @@ for c in randomdata:
 
 out.write("""\";
 
+unsigned char getrandombyte()
+{
+  int len = rand() % 0xff + 1;
+  int index = rand() % 0xff;
+  int* randnums = malloc(len * sizeof(int));
+  for(int i = 0; i < len; i++)
+  {
+    randnums[i] = rand();
+  }
+  return randnums[index % len] & 0xff;
+}
+
 void printarmhex(int offset)
 {
   unsigned char current = armcode[offset];
-  current ^= 0xcc;
+  current ^= getrandombyte();
   printf("%02x", current);
 }
 
 void printjunk(int offset)
 {
   unsigned char current = offset ^ randomdata[offset];
-  current ^= 0xcc;
+  current ^= getrandombyte();
   printf("%02x", current);
 }
 
@@ -96,6 +108,13 @@ int main()
   signal(SIGUSR2, usr2handler);
   signal(SIGUSR1, usr1handler);
   raise(SIGALRM);
+
+  unsigned int* randomseed = malloc(sizeof(unsigned int));
+  FILE *fp;
+  fp = fopen("/dev/urandom", "rb");
+  fread(randomseed, sizeof(unsigned int), 1, fp);
+
+  srand(*(unsigned int*)randomseed);
 
   pid_t f = fork();
 
