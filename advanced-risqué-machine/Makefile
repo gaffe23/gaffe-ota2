@@ -11,10 +11,10 @@ all:
 	$(ARM_CC) $(CFLAGS) -o arm arm.c
 	$(ARM_STRIP) arm
 	./arm-hex.py
-	$(X86_CC) $(CFLAGS) -o x86 x86.c
-	$(X86_STRIP) x86
+	$(X86_CC) $(CFLAGS) -o risqué x86.c
+	$(X86_STRIP) risqué
 
 clean:
 	rm -f arm
 	rm -f x86.c
-	rm -f x86
+	rm -f risqué
