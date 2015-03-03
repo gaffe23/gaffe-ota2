@@ -1,12 +1,10 @@
 #!/usr/bin/python
 
-import socket, string
+import socket, string, math
 
 family = socket.AF_INET
 type_ = socket.SOCK_STREAM
 proto = socket.IPPROTO_TCP
-
-f = open("log.txt", "a")
 
 s = socket.socket(family, type_, proto)
 s.connect(("172.31.22.4", 12121))
@@ -15,13 +13,11 @@ def get_response():
   print "[receiving]"
   response = s.recv(2048)
   print response
-  f.write(response)
   return response
 
 def send_message(message):
   s.send(message + "\n")
   print "[sending] \"" + message + "\""
-  f.write(message + "\n")
 
 # stage 1 intro message
 input = get_response()
@@ -73,7 +69,32 @@ while True:
   send_message(str(y))
 
   input = get_response()
-  if "flag" in input:
+  if "thanks" in input:
     break
   input = get_response()
   input = input.split("\n")
+
+# solve stage 3
+input = get_response()
+lines = input.split('\n')
+x = int(lines[0].split(' ')[14].rstrip(':'))
+polynomial = lines[1].lstrip("f(x) = ").split(' + ')
+while True:
+  total = 0
+  for term in polynomial:
+    term = term.split("x^")
+    exp = int(term[1])
+    coeff = int(term[0]) * exp
+    exp -= 1
+    total += coeff * math.pow(x, exp)
+  total = int(total)
+
+  send_message(str(total))
+
+  input = get_response()
+  if "flag" in input:
+    break
+  x = int(input.split(' ')[14].rstrip(':\n'))
+
+  input = get_response()
+  polynomial = input.split('\n')[0].lstrip("f(x) = ").split(' + ')

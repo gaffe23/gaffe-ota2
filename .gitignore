@@ -10,8 +10,5 @@ switchy.h
 switchy.c
 switchy
 
-# python challenge solutions
-log.txt
-
 # peda output
 peda-*.txt

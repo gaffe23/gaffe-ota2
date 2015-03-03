@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 
-import sys, socket, multiprocessing, time, random, math
+import sys, socket, multiprocessing, time, random, math, string
 
 # ratelimit, in seconds
 RATELIMIT = 0.01
@@ -53,6 +53,21 @@ def check_answer(s, connstart, correctanswer, clientanswer):
         log_msg(clientinfo, "disconnected after %.3f seconds (wrong answer)" % (time.time() - connstart))
         shutdown_connection(s, "Sorry dude, that ain't right...\n")
 
+def termstostring(terms):
+    termlist = []
+    for coeff,exp in terms:
+        termlist.append("%dx^%d" % (coeff, exp))
+    return " + ".join(termlist)
+
+def deriv(x, terms):
+    total = 0
+    for coeff,exp in terms:
+        newcoeff = coeff * exp
+        newexp = exp - 1
+        total += newcoeff * math.pow(x, newexp)
+    total = int(total)
+    return total
+
 def client_process(s):
     """handles client connections. provides the client with increasingly
     difficult math problems, and ends the connection if the client gets a
@@ -64,6 +79,8 @@ def client_process(s):
 
     s.send("Hey dude, can you help me with my math homework? I have a few addition problems to do...\n")
     i = 10.0
+
+    # phase 1 - adding random numbers
 
     while time.time() - connstart < MAX_CONN_TIME and i > 0.5:
 
@@ -97,6 +114,8 @@ def client_process(s):
 
     i = 10.0
 
+    # phase 2 - solving random systems of equations
+
     while time.time() - connstart < MAX_CONN_TIME and i > 0.5:
 
         upperbound = math.pow(math.ceil(100 / (i)), 3)
@@ -127,6 +146,49 @@ def client_process(s):
             check_time(s, connstart, timediff, i)
 
             check_answer(s, connstart, x, clientx)
+            check_answer(s, connstart, y, clienty)
+
+            i /= 1.5
+            time.sleep(RATELIMIT)
+        except Exception, e:
+            log_msg(clientinfo, "Exception: \"%s\"" % (str(e)))
+            shutdown_connection(s, "Sorry dude, I have no idea what you're talking about.\n")
+
+    try:
+        s.send("Hey, thanks dude. So uh, also, do you know anything about calculus?\n")
+    except:
+        pass
+
+    i = 10.0
+
+    # phase 3 - calculating derivatives of polynomials at specific points
+
+    while time.time() - connstart < MAX_CONN_TIME and i > 0.5:
+
+        termcount = int(math.ceil(14 - i))
+
+        upperbound = 9
+
+        terms = []
+
+        for count in xrange(termcount):
+            coeff = random.randint(2, upperbound)
+            exp = random.randint(2, upperbound)
+            terms.append([coeff, exp])
+
+        polynomial = termstostring(terms)
+
+        x = random.randint((-1 * upperbound), upperbound)
+        y = deriv(x, terms)
+
+        try:
+            s.send("You have %f seconds to calculate the derivative of the following equation at point %d:\n" % (i, x))
+            s.send("f(x) = %s\n" % polynomial)
+
+            s.send("Enter the value of f'(x):\n")
+            buf, timediff = get_client_input(s)
+            clienty = int(buf)
+            check_time(s, connstart, timediff, i)
             check_answer(s, connstart, y, clienty)
 
             i /= 1.5
