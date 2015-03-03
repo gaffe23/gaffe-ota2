@@ -70,7 +70,6 @@ def encryptECB(plaintext, key):
 
     return deblockify(ciphertextblocks)
     
-
 def do_encrypt(prefix, input, clientkey):
     """encrypt a client's input, prepended with their random prefix and
     appended with the flag."""
