@@ -1,6 +1,17 @@
 # generated files
+
+# risqué
 arm
 x86.c
 risqué
+
+# switchy
+switchy.h
+switchy.c
+switchy
+
+# python challenge solutions
 log.txt
+
+# peda output
 peda-*.txt
