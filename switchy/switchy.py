@@ -2,7 +2,7 @@
 
 import os, collections
 
-flag = "flag{switchy engineering cool is}";
+flag = "flag{switch jump pogo pogo bounce}";
 
 # generate header
 
