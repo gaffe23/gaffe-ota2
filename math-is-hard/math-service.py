@@ -165,7 +165,7 @@ def client_process(s):
 
     log_msg(clientinfo, "completed stage 2 after %.3f seconds" % (time.time() - connstart))
     try:
-        s.send("Thanks dude. Hey uh, do you know anything about calculus?\n")
+        s.send("Thanks man. Hey uh, also, how much do you know about calculus?\n")
     except:
         pass
 
