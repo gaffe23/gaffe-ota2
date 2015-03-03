@@ -61,13 +61,17 @@ while True:
   newcoeffy2 = coeffy2 * coeffy1
   newconst2 = const2 * coeffy1
 
+  # calculate x
   x = (newconst1 - newconst2) / (newcoeffx1 - newcoeffx2)
   send_message(str(x))
-  y = (const1 - (coeffx1 * x)) / coeffy1
-  send_message(str(y))
 
   # "enter the value of y" message
   get_response()
+
+  # use known x value to calculate y
+  y = (const1 - (coeffx1 * x)) / coeffy1
+  send_message(str(y))
+
   input = get_response()
   if "flag" in input:
     break
