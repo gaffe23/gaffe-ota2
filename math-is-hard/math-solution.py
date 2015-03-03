@@ -69,7 +69,7 @@ while True:
   send_message(str(y))
 
   input = get_response()
-  if "thanks" in input:
+  if "Thanks" in input:
     break
   input = get_response()
   input = input.split("\n")
@@ -82,6 +82,8 @@ polynomial = lines[1].lstrip("f(x) = ").split(' + ')
 while True:
   total = 0
   for term in polynomial:
+    if "x" not in term:
+      continue
     term = term.split("x^")
     exp = int(term[1])
     coeff = int(term[0]) * exp

@@ -56,15 +56,23 @@ def check_answer(s, connstart, correctanswer, clientanswer):
 def termstostring(terms):
     termlist = []
     for coeff,exp in terms:
-        termlist.append("%dx^%d" % (coeff, exp))
+        if exp == 0:
+            termlist.append("%d" % coeff)
+        elif coeff == 0:
+            continue
+        else:
+            termlist.append("%dx^%d" % (coeff, exp))
     return " + ".join(termlist)
 
 def deriv(x, terms):
     total = 0
     for coeff,exp in terms:
-        newcoeff = coeff * exp
-        newexp = exp - 1
-        total += newcoeff * math.pow(x, newexp)
+        if coeff == 0:
+            continue
+        else:
+            newcoeff = coeff * exp
+            newexp = exp - 1
+            total += newcoeff * math.pow(x, newexp)
     total = int(total)
     return total
 
@@ -107,6 +115,7 @@ def client_process(s):
             log_msg(clientinfo, "Exception: \"%s\"" % (str(e)))
             shutdown_connection(s, "Sorry dude, I have no idea what you're talking about.\n")
 
+    log_msg(clientinfo, "completed stage 1 after %.3f seconds" % (time.time() - connstart))
     try:
         s.send("Hey, nice job! Okay, we're done with the addition part, now it's going to get harder:");
     except:
@@ -154,8 +163,9 @@ def client_process(s):
             log_msg(clientinfo, "Exception: \"%s\"" % (str(e)))
             shutdown_connection(s, "Sorry dude, I have no idea what you're talking about.\n")
 
+    log_msg(clientinfo, "completed stage 2 after %.3f seconds" % (time.time() - connstart))
     try:
-        s.send("Hey, thanks dude. So uh, also, do you know anything about calculus?\n")
+        s.send("Thanks dude. Hey uh, do you know anything about calculus?\n")
     except:
         pass
 
@@ -165,20 +175,20 @@ def client_process(s):
 
     while time.time() - connstart < MAX_CONN_TIME and i > 0.5:
 
-        termcount = int(math.ceil(14 - i))
+        termcount = int(math.ceil(11 - i))
 
         upperbound = 9
 
         terms = []
 
         for count in xrange(termcount):
-            coeff = random.randint(2, upperbound)
-            exp = random.randint(2, upperbound)
+            coeff = random.randint(0, upperbound)
+            exp = random.randint(0, upperbound)
             terms.append([coeff, exp])
 
         polynomial = termstostring(terms)
 
-        x = random.randint((-1 * upperbound), upperbound)
+        x = random.randint(1, upperbound)
         y = deriv(x, terms)
 
         try:
