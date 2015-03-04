@@ -25,16 +25,18 @@ def get_client_input(s):
     log_msg(clientinfo, "\"%s\" (response time %.3f seconds)" % (buf, timediff))
     return buf, timediff
 
-def shutdown_connection(s, msg):
+def shutdown_connection(s, connstart, msg):
     """send message to the client (if possible) saying why we're disconnecting
     them, and then close out the socket. if any operation fails along the way,
     assume that the socket is already closed."""
+    clientinfo = s.getpeername()
     try:
         s.send(msg)
         s.shutdown(socket.SHUT_RDWR)
         s.close()
     except:
         pass
+    log_msg(clientinfo, "disconnected after %.3f seconds" % (time.time() - connstart))
     sys.exit()
 
 def check_time(s, connstart, timediff, limit):
@@ -43,7 +45,7 @@ def check_time(s, connstart, timediff, limit):
     clientinfo = s.getpeername()
     if(timediff > limit):
         log_msg(clientinfo, "disconnected after %.3f seconds (too slow)" % (time.time() - connstart))
-        shutdown_connection(s, "Sorry, too slow!\n")
+        shutdown_connection(s, connstart, "Sorry, too slow!\n")
 
 def check_answer(s, connstart, correctanswer, clientanswer):
     """check whether the client's answer was correct, and disconnect them if
@@ -51,7 +53,7 @@ def check_answer(s, connstart, correctanswer, clientanswer):
     clientinfo = s.getpeername()
     if clientanswer != correctanswer:
         log_msg(clientinfo, "disconnected after %.3f seconds (wrong answer)" % (time.time() - connstart))
-        shutdown_connection(s, "Sorry dude, that ain't right...\n")
+        shutdown_connection(s, connstart, "Sorry dude, that ain't right...\n")
 
 def termstostring(terms):
     termlist = []
@@ -113,7 +115,7 @@ def client_process(s):
             time.sleep(RATELIMIT)
         except Exception, e:
             log_msg(clientinfo, "Exception: \"%s\"" % (str(e)))
-            shutdown_connection(s, "Sorry dude, I have no idea what you're talking about.\n")
+            shutdown_connection(s, connstart, "Sorry dude, I have no idea what you're talking about.\n")
 
     log_msg(clientinfo, "completed stage 1 after %.3f seconds" % (time.time() - connstart))
     try:
@@ -161,7 +163,7 @@ def client_process(s):
             time.sleep(RATELIMIT)
         except Exception, e:
             log_msg(clientinfo, "Exception: \"%s\"" % (str(e)))
-            shutdown_connection(s, "Sorry dude, I have no idea what you're talking about.\n")
+            shutdown_connection(s, connstart, "Sorry dude, I have no idea what you're talking about.\n")
 
     log_msg(clientinfo, "completed stage 2 after %.3f seconds" % (time.time() - connstart))
     try:
@@ -205,10 +207,10 @@ def client_process(s):
             time.sleep(RATELIMIT)
         except Exception, e:
             log_msg(clientinfo, "Exception: \"%s\"" % (str(e)))
-            shutdown_connection(s, "Sorry dude, I have no idea what you're talking about.\n")
+            shutdown_connection(s, connstart, "Sorry dude, I have no idea what you're talking about.\n")
 
     log_msg(clientinfo, "got flag after %.3f seconds" % (time.time() - connstart))
-    shutdown_connection(s, "Hey, thanks buddy! Here's a little somethin' for your trouble: %s\n" % FLAG)
+    shutdown_connection(s, connstart, "Hey, thanks buddy! Here's a little somethin' for your trouble: %s\n" % FLAG)
 
 if __name__ == "__main__":
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
