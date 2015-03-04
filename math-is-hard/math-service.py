@@ -29,8 +29,8 @@ def shutdown_connection(s, connstart, msg):
     """send message to the client (if possible) saying why we're disconnecting
     them, and then close out the socket. if any operation fails along the way,
     assume that the socket is already closed."""
-    clientinfo = s.getpeername()
     try:
+        clientinfo = s.getpeername()
         s.send(msg)
         s.shutdown(socket.SHUT_RDWR)
         s.close()
