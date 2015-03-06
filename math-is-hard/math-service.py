@@ -9,7 +9,7 @@ RATELIMIT = 0.01
 MAX_CONN_TIME = 3 * 60
 
 PORT_NUMBER = 12121
-NUM_SIMULTANEOUS_CONNS = 20
+NUM_SIMULTANEOUS_CONNS = 50
 FLAG = "flag{l3ts_g0_shOpP1ng}"
 
 def log_msg(clientinfo, msg):
@@ -184,7 +184,7 @@ def client_process(s):
         terms = []
 
         for count in xrange(termcount):
-            coeff = random.randint(0, upperbound)
+            coeff = random.randint(1, upperbound)
             exp = random.randint(0, upperbound)
             terms.append([coeff, exp])
 
@@ -194,7 +194,7 @@ def client_process(s):
         y = deriv(x, terms)
 
         try:
-            s.send("You have %f seconds to calculate the derivative of the following equation at point %d:\n" % (i, x))
+            s.send("You have %f seconds to calculate the derivative of the following equation for x = %d:\n" % (i, x))
             s.send("f(x) = %s\n" % polynomial)
 
             s.send("Enter the value of f'(x):\n")

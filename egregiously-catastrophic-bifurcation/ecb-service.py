@@ -10,7 +10,7 @@ RATELIMIT = 0.01
 MAX_CONN_TIME = 3 * 60
 
 PORT_NUMBER = 12734
-NUM_SIMULTANEOUS_CONNS = 20
+NUM_SIMULTANEOUS_CONNS = 50
 FLAG = "flag{I_s33_p3NGu1ns}"
 
 def blockify(data, blocksize=16):
@@ -69,7 +69,7 @@ def encryptECB(plaintext, key):
         ciphertextblocks.append(ciphertextblock)
 
     return deblockify(ciphertextblocks)
-    
+
 def do_encrypt(prefix, input, clientkey):
     """encrypt a client's input, prepended with their random prefix and
     appended with the flag."""
@@ -119,3 +119,4 @@ if __name__ == "__main__":
         (clientsocket, address) = s.accept()
         newclient = multiprocessing.Process(target = client_process, args = (clientsocket, ))
         newclient.start()
+
