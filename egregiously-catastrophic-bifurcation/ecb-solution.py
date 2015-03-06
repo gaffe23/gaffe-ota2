@@ -3,7 +3,7 @@
 import sys, string, socket
 from collections import Counter
 
-SERVER_IP = "172.31.22.4"
+SERVER_IP = "104.131.107.153"
 SERVER_PORT = 12734
 
 def blockify(data, blocksize=16):
