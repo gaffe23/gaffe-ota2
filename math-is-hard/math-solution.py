@@ -10,9 +10,8 @@ s = socket.socket(family, type_, proto)
 s.connect(("104.131.107.153", 12121))
 
 def get_response():
-  print "[receiving]"
   response = s.recv(2048)
-  print response
+  print "[receiving] \"%s\"" % response.rstrip()
   return response
 
 def send_message(message):
@@ -26,9 +25,7 @@ input = input.split("\n")[0]
 
 # solve stage 1
 while "nice job" not in input:
-  print input
   input = input.split(" ")
-  print input
   num1 = int(input[8])
   num2 = int(input[10])
   solution = num1 + num2
