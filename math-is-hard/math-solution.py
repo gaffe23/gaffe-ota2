@@ -7,7 +7,7 @@ type_ = socket.SOCK_STREAM
 proto = socket.IPPROTO_TCP
 
 s = socket.socket(family, type_, proto)
-s.connect(("172.31.22.4", 12121))
+s.connect(("104.131.107.153", 12121))
 
 def get_response():
   print "[receiving]"
@@ -21,11 +21,14 @@ def send_message(message):
 
 # stage 1 intro message
 input = get_response()
-input = input.split("\n")[1]
+input = get_response()
+input = input.split("\n")[0]
 
 # solve stage 1
 while "nice job" not in input:
+  print input
   input = input.split(" ")
+  print input
   num1 = int(input[8])
   num2 = int(input[10])
   solution = num1 + num2
@@ -77,7 +80,7 @@ while True:
 # solve stage 3
 input = get_response()
 lines = input.split('\n')
-x = int(lines[0].split(' ')[14].rstrip(':'))
+x = int(lines[0].split(' ')[15].rstrip(':'))
 polynomial = lines[1].lstrip("f(x) = ").split(' + ')
 while True:
   total = 0
@@ -96,7 +99,7 @@ while True:
   input = get_response()
   if "flag" in input:
     break
-  x = int(input.split(' ')[14].rstrip(':\n'))
+  x = int(input.split(' ')[15].rstrip(':\n'))
 
   input = get_response()
   polynomial = input.split('\n')[0].lstrip("f(x) = ").split(' + ')
