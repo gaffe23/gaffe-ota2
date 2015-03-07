@@ -1,0 +1,81 @@
+# Egregiously Catastropic Bifurcation - Solution overview
+
+http://cryptopals.com/sets/2/challenges/12/
+
+http://ehsandev.com/pico2014/cryptography/web_interception.html
+
+Start by connecting to the server:
+
+	$ nc 104.131.107.153 12734
+
+I sit there for a while and nothing happens, so I start typing in random stuff to see what happens:
+
+	asdfsadfsad
+	39e5e5055f969e50b54db452ca1e8c3c28802144980a179bf618e53c4be4047c3e89e7a61bb639aa3fca4dc9a89d3e32fe3480540b37fdd71b25818bc02aa18ac342258c55e4a647f9500ee0d692b610f8d3d131baec40e448096bf23d5c62d1155208be78008bc14e134a190595b2b7cedf134b1f913b6d3e9c9ccfe46d232f62b20cb110a528a729d5012b9d7627b386a2c28061193a326aa7fe639aedec6b
+	dfsafdafd
+	39e5e5055f969e50b54db452ca1e8c3c28802144980a179bf618e53c4be4047c3e89e7a61bb639aa3fca4dc9a89d3e32fe3480540b37fdd71b25818bc02aa18ac342258c55e4a647f9500ee0d692b610f8d3d131baec40e448096bf23d5c62d1155208be78008bc14e134a190595b2b787aef9d20f4540cb437b833c943a8c8c1e3fbfb8842aa7a39811b063e4a30292
+	adsfsaffsafd
+	39e5e5055f969e50b54db452ca1e8c3c28802144980a179bf618e53c4be4047c3e89e7a61bb639aa3fca4dc9a89d3e32fe3480540b37fdd71b25818bc02aa18ac342258c55e4a647f9500ee0d692b610f8d3d131baec40e448096bf23d5c62d1155208be78008bc14e134a190595b2b7e0ef15ce983bc0cb3d6eb1ebf3522442c79f30ca7b6129bfabda792d7780e5a0ddb4ace93f4a05bf23b3c393979fa793
+
+The output only seems to contain hexadecimal digits, so I'll bet this is some kind of hex-encoded data. However, if we try decoding it, it comes out unreadable:
+
+	$ python
+	Python 2.7.6 (default, Mar 22 2014, 22:59:56)
+	[GCC 4.8.2] on linux2
+	Type "help", "copyright", "credits" or "license" for more information.
+	>>> "39e5e5055f969e50b54db452ca1e8c3c28802144980a179bf618e53c4be4047c3e89e7a61bb639aa3fca4dc9a89d3e32fe3480540b37fdd71b25818bc02aa18ac342258c55e4a647f9500ee0d692b610f8d3d131baec40e448096bf23d5c62d1155208be78008bc14e134a190595b2b7e0ef15ce983bc0cb3d6eb1ebf3522442c79f30ca7b6129bfabda792d7780e5a0ddb4ace93f4a05bf23b3c393979fa793".decode('hex')
+	'9\xe5\xe5\x05_\x96\x9eP\xb5M\xb4R\xca\x1e\x8c<(\x80!D\x98\n\x17\x9b\xf6\x18\xe5<K\xe4\x04|>\x89\xe7\xa6\x1b\xb69\xaa?\xcaM\xc9\xa8\x9d>2\xfe4\x80T\x0b7\xfd\xd7\x1b%\x81\x8b\xc0*\xa1\x8a\xc3B%\x8cU\xe4\xa6G\xf9P\x0e\xe0\xd6\x92\xb6\x10\xf8\xd3\xd11\xba\xec@\xe4H\tk\xf2=\\b\xd1\x15R\x08\xbex\x00\x8b\xc1N\x13J\x19\x05\x95\xb2\xb7\xe0\xef\x15\xce\x98;\xc0\xcb=n\xb1\xeb\xf3R$B\xc7\x9f0\xca{a)\xbf\xab\xday-w\x80\xe5\xa0\xdd\xb4\xac\xe9?J\x05\xbf#\xb3\xc3\x93\x97\x9f\xa7\x93'
+
+Also, it looks like it's giving output that has some repetition in it. This string is coming up at the beginning of the server's response each time we send something:
+
+	39e5e5055f969e50b54db452ca1e8c3c28802144980a179bf618e53c4be4047c3e89e7a61bb639aa3fca4dc9a89d3e32fe3480540b37fdd71b25818bc02aa18ac342258c55e4a647f9500ee0d692b610f8d3d131baec40e448096bf23d5c62d1155208be78008bc14e134a190595b2b7
+
+Let's try connecting again and just sending random stuff again:
+
+	$ nc 104.131.107.153 12734
+	asdf
+	9aed6e484e9b94a5be1088f44c1490cf15975cdb5de88916c727e5433a39e6dff9e19b68ef8c05a087468cbd571952d3508dd6a883af55dcc7cbc86cf87f4fd2d6ccb74718b36d9d3003003bdce0b7adf412a8384338b05a6e603f4084fa64eaae2cbf0e2a06e1705478d48002406564
+	asdf
+	9aed6e484e9b94a5be1088f44c1490cf15975cdb5de88916c727e5433a39e6dff9e19b68ef8c05a087468cbd571952d3508dd6a883af55dcc7cbc86cf87f4fd2d6ccb74718b36d9d3003003bdce0b7adf412a8384338b05a6e603f4084fa64eaae2cbf0e2a06e1705478d48002406564
+	asdfasdf
+	9aed6e484e9b94a5be1088f44c1490cf15975cdb5de88916c727e5433a39e6dff9e19b68ef8c05a087468cbd571952d3508dd6a883af55dcc7cbc86cf87f4fd2d6ccb74718b36d9d3003003bdce0b7adb869cb6386612be67aeb24b9183357faded9b741e7b7cf1ee05bdc0e3b887fce
+	asdfsadfasdfsadf
+	9aed6e484e9b94a5be1088f44c1490cf15975cdb5de88916c727e5433a39e6dff9e19b68ef8c05a087468cbd571952d3508dd6a883af55dcc7cbc86cf87f4fd2d6ccb74718b36d9d3003003bdce0b7ad04cba1d2a579c5f9417dcff9086c4bbbf08b78beb0a6edfb12c3e5693ed679727b3440cac7a475d2c31e501baecf7cac
+	asdfasdfsadfasdfasdfasdfasdfasdf
+	9aed6e484e9b94a5be1088f44c1490cf15975cdb5de88916c727e5433a39e6dff9e19b68ef8c05a087468cbd571952d3508dd6a883af55dcc7cbc86cf87f4fd2d6ccb74718b36d9d3003003bdce0b7ad186405ba68ab18ce0cd801d57e0053563305e8f610f0bf757e632ee2eaa90471f08b78beb0a6edfb12c3e5693ed679727b3440cac7a475d2c31e501baecf7cac
+	asdfasdfasdf
+	9aed6e484e9b94a5be1088f44c1490cf15975cdb5de88916c727e5433a39e6dff9e19b68ef8c05a087468cbd571952d3508dd6a883af55dcc7cbc86cf87f4fd2d6ccb74718b36d9d3003003bdce0b7ad0ccee755e6d05b2f524555af00eebf6e28e574294397d02582e83157f3e4c65e
+	asdfsadfsadfsadfasdfsadf
+	9aed6e484e9b94a5be1088f44c1490cf15975cdb5de88916c727e5433a39e6dff9e19b68ef8c05a087468cbd571952d3508dd6a883af55dcc7cbc86cf87f4fd2d6ccb74718b36d9d3003003bdce0b7adeb8466c3c7d445966201401640aff39ef138f9781358b53cca4220962494ad0fded9b741e7b7cf1ee05bdc0e3b887fce
+
+Okay, so we got more hex output back from the server this time, so that's consistent with what we saw before.
+
+Like before, every message starts with the same prefix, but the prefix seems to be different from last time.
+
+Also, there's something interesting going on with the lengths of the server's responses:
+
+* For the inputs `asdf` (4 characters), `asdfasdf` (8 characters), and `asdfasdfasdf` (12 characters), the server's response was the same length each time.
+* However, `asdfsadfasdfsadf` (16 characters) and `asdfsadfsadfsadfasdfsadf` (24 characters) produced longer responses.
+* Then, `asdfasdfsadfasdfasdfasdfasdfasdf` (32 characters) produced a response that was longer than any of the rest.
+
+If we look at the lengths of the responses, we can see that they're all 16 bytes apart (i.e. 32 hex digits). This seems to indicate that they might be using some kind of block cipher, with a 16-byte block size.
+
+Let's try more random inputs and see what happens:
+
+	$ nc 104.131.107.153 12734
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	c4d9a04a3b6d54ae02aacaf4fd8ad9f18740295e16edb8a39c204d861641f1a7bc902cd6ece74e00d43fd0b586d0e9d087b15199c6331f400070cc6bcb40990b5b4851e0b41ec1452e98e2ed1139f1d8b6e5d6ae1500817b9008a3b0259f8231efaa036273ce77a1b13b716e652e1aa726cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f79d4856489e3daf55321c35f11eafed097a0b3af3f4c3c7f0690fdc3ddef5efb
+	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+	c4d9a04a3b6d54ae02aacaf4fd8ad9f18740295e16edb8a39c204d861641f1a7bc902cd6ece74e00d43fd0b586d0e9d087b15199c6331f400070cc6bcb40990b5b4851e0b41ec1452e98e2ed1139f1d8b6e5d6ae1500817b9008a3b0259f8231efaa036273ce77a1b13b716e652e1aa726cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1f26cc6addb7acb8890706dee1ddaa1c1fe818dc85391ef39b3edc29be4fb6d0c4f7c99b09476ae7ce60b789abd73d3716
+
+This time we just spammed `A`s for our inputs. If you look carefully at the server's responses, there's a continually repeating pattern. The string `26cc6addb7acb8890706dee1ddaa1c1f` is basically spammed throughout the server response, just like the `A`s we spammed in the input.
+
+In addition, this repeating string just so happens to be 16 bytes long. At this point it's pretty safe to draw two conclusions:
+
+* Since the lengths of the outputs are all multiples of 16 bytes, this challenge is very likely encrypting the inputs using some kind of block cipher with a block size of 16 bytes.
+
+* In addition, since there's so much repetition in the ciphertext, and the repeating pattern is itself 16 bytes long, the block cipher is apparently being used in [electronic codebook](http://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Electronic_Codebook_.28ECB.29) mode.
+
+[Electronic codebook mode, or ECB](http://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Electronic_Codebook_.28ECB.29), is a block cipher mode that leaves distinct patterns in the ciphertext that can give away a large amount of information about the corresponding plaintext. See the pictures of the Linux penguin in the [Wikipedia article on block cipher modes](http://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Electronic_Codebook_.28ECB.29) for an example of one way that this can happen. As a result, ECB should never be used in practice.
+
+Okay, so we've arrived at a point where we can see how this service is doing something that makes it vulnerable, so how can we leverage that?
