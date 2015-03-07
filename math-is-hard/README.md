@@ -151,4 +151,4 @@ Here, we run into a slight problem because of the constant term `1`. We have to 
 	[sending] "18233223"
 	[receiving] "Hey, thanks buddy! Here's a little somethin' for your trouble: flag{l3ts_g0_shOpP1ng}"
 
-Once we get through all of the derivatives, the server gives us the flag.
+Once we get through all of the derivatives, the server gives us the flag: `flag{l3ts_g0_shOpP1ng}`
