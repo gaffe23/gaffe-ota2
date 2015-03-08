@@ -1,6 +1,6 @@
 # gaffe-ota2
 
-**Code and solutions for gaffe's challenges during [OpenToAll CTF 2](http://ctf2.opentoall.net/):**
+**Source code and solutions for gaffe's challenges during [OpenToAll CTF 2](http://ctf2.opentoall.net/):**
 
 * **Math is Hard**, misc 200
 

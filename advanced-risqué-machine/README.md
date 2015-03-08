@@ -108,7 +108,7 @@ Let's check out the `SIGALRM` handler, which IDA has automatically named `handle
 	.text:08048897 C3                                            retn
 	.text:08048897                               handler         endp
 
-Looks like it's pretty straightforward: it acknowledges the received signal by calling `_signal` and then calls `_raise` to create a `SIGPIPE`. If we flip back to `main`, we see that the `SIGPIPE` handler the program installed is at `sub_80488A0`. This function is not that much different from the previous one; it acknowledges the `SIGPIPE` and then calls `_raise` to create a `SIGUSR2`. If we check out the `SIGUSR2` handler, we see that it raises a `SIGUSR1`.
+Looks like it's pretty straightforward: it acknowledges the received signal by calling `_signal` and then calls `_raise` to create a `SIGPIPE`. If we flip back to `main`, we see that the `SIGPIPE` handler the program installed is at `80488A0`. This function is not that much different from the previous one; it acknowledges the `SIGPIPE` and then calls `_raise` to create a `SIGUSR2`. If we check out the `SIGUSR2` handler, we see that it raises a `SIGUSR1`.
 
 Once we reach the `SIGUSR1` handler at `08048940`, things start getting slightly more interesting:
 
@@ -195,4 +195,4 @@ One thing that is a bit reassuring is that if we look at the length of the file,
 	$ wc test
 	  11  123 5640 test
 
-It's probably not a coincidence that the program XORs 5641 bytes of data together, and then later on gives us 5640 bytes of hex-encoded output. However, it's not at all clear what's happening between the XOR operations and the actual output, so we have to dig deeper in order to find out what's happening there.
+It's probably not a coincidence that the program XORs 5641 bytes of data together, and then later on gives us 5640 bytes of hex-encoded output. However, it's not at all clear what's happening in between the XOR operations and the actual output, so we're going to have to dig deeper in order to find out what's happening there.
