@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 
-import os, socket, multiprocessing, time, random
+import os, socket, multiprocessing, time, random, signal
 from Crypto.Cipher import AES
 
 # ratelimit, in seconds
@@ -88,13 +88,15 @@ def client_process(s):
     send back to the client. a new random key and prefix are generated for each
     new connection, which prevents a multi-threaded solution."""
 
+    signal.alarm(MAX_CONN_TIME)
+
     clientkey = os.urandom(16)
     clientinfo = s.getpeername()
     clientprefix = os.urandom(random.randint(32,64)).encode('hex')
     connstart = time.time()
     log_msg(clientinfo, "connected")
 
-    while time.time() - connstart < MAX_CONN_TIME:
+    while True:
         time.sleep(RATELIMIT)
         buf = s.recv(2048).rstrip().split('\n')
         try:
@@ -106,7 +108,11 @@ def client_process(s):
             break
 
     log_msg(clientinfo, "disconnected after %f seconds" % (time.time() - connstart))
-    s.close()
+    try:
+        s.shutdown(socket.SHUT_RDWR)
+        s.close()
+    except:
+        pass
 
 if __name__ == "__main__":
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
