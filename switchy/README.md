@@ -1,11 +1,13 @@
 # Switchy - Solution overview
 
-We get a `tar.bz2` file. Decompress it and we get a file called `7fcdb7907692cbd6ea87600ab11377b3`. Run `file` on it to try and figure out what it is:
+For this challenge, we're given a `tar.bz2` file. First, I decompress it with `tar jxvf 639c6e1ff3e75935601984458f5309f4.tar.bz2`. This gives us a file called `7fcdb7907692cbd6ea87600ab11377b3`.
+
+This is a reverse engineering challenge, so the file is probably an executable, but let's run the `file` command on it just to see what it is:
 
 	$ file 7fcdb7907692cbd6ea87600ab11377b3
 	7fcdb7907692cbd6ea87600ab11377b3: ELF 32-bit LSB  executable, Intel 80386, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.24, BuildID[sha1]=ed173f80ccccc36c7c25b5093a93f67e28bc0acc, not stripped
 
-Looks like a binary, so let's run it and see what happens:
+It does look like an executable, so let's run it and see what happens:
 
 	$ ./7fcdb7907692cbd6ea87600ab11377b3
 	☃▒▒▒▒▒☃Q
@@ -13,7 +15,9 @@ Looks like a binary, so let's run it and see what happens:
 	┤b┤┼├┤ ▒├ ☃⎻↑172↑31↑22↑4 ☃┼ ·/⎺├▒/⎽┬☃├c▒≤
 	$
 
-Yuck, it messed up my terminal. Run `reset` to get things looking normal again. Let's take a look at the output of `strace` to see more about what it's doing:
+Yuck, it spit out a bunch of weird characters and messed up my terminal. I have to run `reset` to get things looking normal again.
+
+Okay, clearly this program is not just going to give us the flag outright, so let's take a look at the output of `strace` to learn more about what it's doing:
 
 	$ strace ./7fcdb7907692cbd6ea87600ab11377b3
 	execve("./7fcdb7907692cbd6ea87600ab11377b3", ["./7fcdb7907692cbd6ea87600ab11377"...], [/* 39 vars */]) = 0
@@ -81,15 +85,16 @@ Yuck, it messed up my terminal. Run `reset` to get things looking normal again. 
 	e│☃├_±⎼⎺┤⎻(▮)                           = ?
 	→→→ e│☃├ed ┬☃├▒ ▮ →→→
 
-It messed up my terminal again, but at least I can see that it's outputting junk characters one-by-one. Looks like there are 34 of them.
+It messed up my terminal again, but at least I can see that it's outputting junk characters one-by-one. It called `write` 34 times, once for each character of the junk output.
 
-Anyway, it seems like this is about all of the insight that we're going to be able to get without disassembling the program, so let's load it up in good ol' `gdb`. Actually, I'm going to use [gdb-peda](https://github.com/longld/peda), which adds quite a lot of helpful displays and commands to `gdb`.
+Anyway, there doesn't seem to be anything else very interesting-looking in the output of `strace`. It's time to start disassembling the program, so let's load it up in good ol' `gdb`. I'm going to use [gdb-peda](https://github.com/longld/peda), which adds quite a lot of helpful displays and commands to `gdb`.
 
 	gdb-peda$ b main
 	Breakpoint 1 at 0x80486d9
 	gdb-peda$ r
 	Starting program: /home/ubuntu/ctf/2015/ota2/switchy/7fcdb7907692cbd6ea87600ab11377b3
 	Breakpoint 1, 0x080486d9 in main ()
+	[...]
 	gdb-peda$ disas main
 	Dump of assembler code for function main:
 	   0x080486d0 <+0>:     push   ebp
@@ -203,13 +208,13 @@ What we see is a really long repeating pattern of instructions. Let's break down
 
  Looks like a format string. Since the program is giving us a single character of output at a time, it's safe to say that this is the format string being used to output the junk characters we saw earlier.
 
-* It loads `al` (the lowest byte of `eax`) into `edx`. It looks like the value of `eax` comes from the function call to `0x8048fa4` (i.e., it's the function's return value).
+* It loads `al` (the lowest byte of `eax`) into `edx`. It looks like the value of `eax` comes from the function call to `0x8048fa4` (i.e., it's that function's return value).
 
 * It loads `ecx` (the format string) and `edx` (the output of the function at `0x8048470`) onto the stack as arguments to `printf`.
 
 * It calls `printf` to output a single character: the return value of `0x8048470` stored in `edx`.
 
-* It loads the value `0x804b160` into ecx and then loads it onto the stack. This value is apparently going to be used as an argument to `fflush`. Let's take a closer look at it:
+* It loads the value `0x804b160` into ecx and then loads it onto the stack. This value is apparently going to be used as an argument to `fflush`. Let's take a closer look at what kind of data is at that address:
 
 		gdb-peda$ x/s 0x804b160
 		0x804b160:      "\300J\374", <incomplete sequence \367>
@@ -218,13 +223,13 @@ What we see is a really long repeating pattern of instructions. Let's break down
 		gdb-peda$ x/wx 0xf7fc4ac0
 		0xf7fc4ac0 <_IO_2_1_stdout_>:   0xfbad2084
 
- Looks like it's essentially a pointer to the `stdout` file descriptor. This makes sense as an argument to `fflush`; usually programs will call this function in order to flush the `printf` buffer.
+ It looks like this is essentially a pointer to the `stdout` file descriptor. This makes sense as an argument to `fflush`. Usually programs will call this function in order to force buffered output from `printf` to be printed to the screen.
 
-* It loads `eax` into some position on the stack, which seems to increase each time.
+* It loads the value of `eax` into some position on the stack, which seems to increase each time.
 
 * After this, the pattern repeats, with the `lea` instruction loading a new value to be passed on the stack as an argument to the function `0x8048470`.
 
-It definitely seems like the function at `0x8048470` plays an important role in all of this, so let's disassemble it and see what we can see:
+Since the function at `0x8048470` gets called over and over again, it definitely seems like it is playing an important role in all of this. We should probably try to understand what this function is doing. Let's disassemble it and see what we can find out about it:
 
 	gdb-peda$ x/50i 0x8048470
 	   0x8048470:   push   ebp
@@ -278,25 +283,25 @@ It definitely seems like the function at `0x8048470` plays an important role in 
 	   0x8048530:   jmp    0x80486bf
 	   0x8048535:   movsx  eax,BYTE PTR ds:0x804b030
 
-Yuck. Okay, looks like we have some kind of repeating pattern in here too. Let's break down what this function is doing. At the start, it loads the first argument to the function from the stack into `eax` and then copies it into a location inside its own stack frame at `[ebp-0x8]`. After that, it compares some values together in order to determine where to jump.
+It looks like we have some kind of repeating pattern in here too. Let's break down what this function is doing. At the start of the function, it loads its first argument into `eax` and then copies it into a location inside its own stack frame at `[ebp-0x8]`. After that, it compares some values together in order to determine some kind of jump behavior.
 
-The instruction `mov ecx,DWORD PTR [eax*4+0x8048f50]` essentially takes `eax` (which contains the argument to the function), multiplies it by 4, adds it to the value `0x8048f50`, and stores that result in `ecx`. Directly afterwards, something very interesting happens: the program jumps to the address contained in `ecx`. Apparently this calculation of `(eax * 4) + 0x8048f50` is meant to calculate an actual address to jump to within the program.
+The instruction `mov ecx,DWORD PTR [eax*4+0x8048f50]` essentially takes `eax` (the argument to the function) and multiplies it by 4, and then adds it to the value `0x8048f50`. The program stores the result of this calculation in `ecx`. Directly afterwards, the program does something very interesting: it unconditionally jumps to the address contained in `ecx`. Apparently this calculation of `(eax * 4) + 0x8048f50` is meant to calculate an actual address to jump to within the program.
 
-After this, we get to the repeated blocks of code, which all do something like this:
+After this, we reach the repeating blocks of code, which each do something like this:
 
 * Move some byte value stored within the binary into `eax`.
 
-* Move another byte value, which comes directly after the previous byte value, into `ecx`.
+* Move another byte value into `ecx`. This byte value seems to comes directly after the previous byte value that was just loaded into `eax`.
 
 * XOR `eax` and `ecx` together and store the result in `eax`.
 
-* Move `al` into `dl`, which is equivalent to moving `eax` into `edx` since `al` only contains a single byte.
+* Move `al` into `dl`. ('al' and 'dl' refer to the lowest byte of `eax` and `edx`, respectively.)
 
-* Store `dl`, the result of the XOR operation, at the address `[ebp-0x1]`.
+* Store `dl`, which now contains the result of the XOR operation, at the address `[ebp-0x1]`.
 
 * Jump unconditionally to address `0x80486bf`.
 
-Let's take a look at `0x80486bf`, the address the function jumps to at the end of these repeated blocks of instructions.
+Each block jumps unconditionally to this block `0x80486bf` once it's done. Let's see what that block does:
 
 	gdb-peda$ x/10i 0x80486bf
 	   0x80486bf:   movsx  eax,BYTE PTR [ebp-0x1]
@@ -311,13 +316,13 @@ Let's take a look at `0x80486bf`, the address the function jumps to at the end o
 	   0x80486e0 <main+16>: mov    eax,ds:0x804b050
 	gdb-peda$
 
-The function retrieves the XOR result from address `[ebp-0x1]` and stores it in eax in order to make it the return value for the function. Then it cleans up the stack and returns.
+This part consists of only a couple of instructions. It retrieves the result of the XOR operation that was stored earlier at address `[ebp-0x1]`, and then stores it in `eax`. On x86, the `eax` register usually contains the return value for an instruction. Right after this, the function cleans up the stack and returns, so the function is actually returning the byte value that is calculated from the XOR operation.
 
-Having gone through this function, what conclusions can we draw about it? Well, since it seems to conditionally choose only one option out of the repeating pattern, and it uses an offset to calculate which option to jump to, then this code was almost certainly generated from a C `switch` statement. That certainly makes sense given the name of the challenge, "Switchy".
+Having the function this much, what conclusions can we draw about it? Well, since it seems to conditionally choose only one option out of the repeating pattern, and it uses an offset to calculate which option to jump to, we can conclude that this code was almost certainly generated from a C `switch` statement. That also makes sense given the name of the challenge, "Switchy".
 
-Overall, it looks like the program is doing some complicated manipulation of characters to produce some kind of output. The flag might be in there somewhere, but currently the program is just outputting garbage. Let's step through the program and see what the actual data looks like as it's printing the individual characters.
+Overall, it looks like the program is XORing various values together in order to print its output byte by byte. The flag might be in the binary somewhere, but currently the program is just outputting garbage. Let's step through the program and see what the actual data looks like as it's printing the individual characters.
 
-I begin stepping through `main`, and then step into the first call to the function at `0x8048470`. I step through to the point where the function loads two byte values and XORs them together:
+I begin stepping through `main`. I step into the first call to the function `0x8048470`. I step through the `jmp` instruction that implements the C `switch` statement. Then, I reach the point where the function has loaded its two byte values and is about to XOR them together:
 
 	gdb-peda$ si
 	[-----------------------------------------------------registers-----------------------------------------------------]
@@ -353,7 +358,9 @@ I begin stepping through `main`, and then step into the first call to the functi
 	0x08048591 in ?? ()
 	gdb-peda$
 
-One byte value is in `eax`, and the other byte value is in `ecx`. If we look at `gdb-peda`'s register display, we see that `eax` is set to `0x66` (the letter 'f' in ASCII), and `ecx` is `0x5`. When we step some more, we see that the two values are XORed together to produce the value `0x63` (the letter 'c' in ASCII).
+One of the byte values is in `eax`, and the other byte value is in `ecx`. If we look at `gdb-peda`'s register display, we see that `eax` is set to `0x66` (the letter 'f' in ASCII), and `ecx` is `0x5`.
+
+When we step some more, we see that the two values are XORed together to produce the value `0x63` (the letter 'c' in ASCII):
 
 	gdb-peda$ si
 	[-----------------------------------------------------registers-----------------------------------------------------]
@@ -389,14 +396,14 @@ One byte value is in `eax`, and the other byte value is in `ecx`. If we look at 
 	0x08048595 in ?? ()
 	gdb-peda$
 
-So, we know that the text messes up the terminal, but one thing we can do is to pipe it into `xxd` to see what the output is in hex. Let's do that in another terminal and see what it looks like:
+At this point, I want to check to see if the output we're getting here actually matches what the overall program output. The output messes up the terminal, but we can still read the output precisely by piping it into `xxd`. `xxd` will show us what the output is in hex, and will not attempt to print non-ASCII characters. Let's briefly try this in another terminal and see what the output looks like:
 
 	$ ./7fcdb7907692cbd6ea87600ab11377b3 | xxd
 	0000000: 63db 7ddb 97ea 4cc9 260e 07b7 0d69 ae1f  c.}...L.&....i..
 	0000010: b71f fcdb fcb7 1ffc dbfc b7a6 fc69 510e  .............iQ.
 	0000020: c946 0a                                  .F.
 
-We can see that the first byte of the output is indeed `0x63`, so it looks like this is where that output is coming from. Let's step into the next call to `0x8048470` and see if this continues to hold true.
+We can see that the first byte of the output is indeed `0x63`, so it looks like we are at the actual spot in the program where this first byte of output is generated. Let's step into the next call to `0x8048470` and see if this continues to hold true:
 
 	[-----------------------------------------------------registers-----------------------------------------------------]
 	EAX: 0x6c (b'l')
@@ -430,7 +437,7 @@ We can see that the first byte of the output is indeed `0x63`, so it looks like 
 	Legend: code, data, rodata, value
 	0x08048613 in ?? ()
 
-`eax` is set to `0x6c` ('l' in ASCII), and `ecx` is effectively set to `0xb7` since it's going to be interpreted as a byte value. Now we'll step onward to the XOR:
+This time, `eax` is set to `0x6c` ('l' in ASCII). `ecx` is set to `0xffffffb7`, but we can effectively consider it to be `0xb7` since it's going to be interpreted as a byte value later on. Next, we'll step onward to the XOR:
 
 	[-----------------------------------------------------registers-----------------------------------------------------]
 	EAX: 0xffffffdb
@@ -466,7 +473,7 @@ We can see that the first byte of the output is indeed `0x63`, so it looks like 
 
 The result of this XOR is `0xdb`, a non-printable character. We can see from the output of `xxd` above that `0xdb` is indeed the second byte of the program's output.
 
-You may have noticed by now that each time `0x8048470` has been called so far, the value of `eax` has been set to an ASCII value. We know that the format of the flags for this CTF is `flag{secret text}`, so the fact that the first two values of `eax` inside this function before the XOR have been 'f' followed by 'l' suggests that we might be on to something here. Let's keep stepping through and checking out these values to see if this is actually the case.
+You may have noticed by now that each time `0x8048470` has been called so far, the value of `eax` has been set to an ASCII value. We know that the flag format for this CTF is `flag{secret text}`. The fact that the first two values of `eax` inside this function before the XOR have been 'f' followed by 'l' suggests that we might be close to finding the flag. Let's keep stepping through the program and looking at these values to see if this is actually the case.
 
 Next character:
 
@@ -502,7 +509,7 @@ Next character:
 	Legend: code, data, rodata, value
 	0x08048543 in ?? ()
 
-Yep, the next character is an 'a'. On to the next:
+Yep, the next character is an 'a'. On to the next one:
 
 	[-----------------------------------------------------registers-----------------------------------------------------]
 	EAX: 0x67 (b'g')
@@ -536,11 +543,15 @@ Yep, the next character is an 'a'. On to the next:
 	Legend: code, data, rodata, value
 	0x080484db in ?? ()
 
-Okay, this one was 'g'. I think it's pretty much guaranteed that we've found how to get the flag at this point, but it's going to be pretty arduous to step into this function 34 times and read the value of `eax` out of the debugger to get the entire output of the program. Let's see if we can devise something to make this more convenient.
+Okay, this one was 'g'. I don't think it's a coincidence that these first 4 values spell out "flag". It looks like the `eax` values inside these sections of the program will give us the flag. However, it's going to be pretty arduous to step into this function 34 times and read the value of `eax` out of the debugger's register display to get the entire output of the program. Let's see if we can devise something to make this more convenient.
 
-So, we know that `eax` contains the actual value we care about. `ecx` contains some kind of garbage that we don't want that's being XORed with `eax` to produce some other value. Once the XOR operation is done, the result is moved from `al` into `dl` to produce the final result. If we patch out the XOR operations, then `eax` will never get XORed. The correct value of `al` will then get loaded directly into `dl`, and the function will return the character we want.
+We know that `eax` will contain the actual values we care about. `ecx` contains some kind of garbage that we don't care about. The value in `ecx` is being XORed with `eax` to produce some weird, non-printable characters that mess up the terminal display. Once the XOR operation is done, the result is moved from `al` into `dl` to produce the final result.
 
-There are lots of ways of patching binaries. In a pinch, I like using `vim` and `xxd` to essentially hex-edit the program. Feel free to use any tool of your choice. First, we have to figure out what actual bytes to overwrite. Unfortunately, `gdb` doesn't show us the opcode bytes for the instructions, so I need to disassemble the program using `objdump`:
+One way of handling this situation is to simply patch the XOR operations with some other instruction in order to change the program's behavior. One common choice on x86 is the `nop` instruction, which stands for "No Operation Performed". It is an instruction that does absolutely nothing. If we patch the binary to replace the XOR operations with `nop` instructions, then `eax` will never get XORed with `ecx`. As a result, the program will load the correct values of `al` directly into `dl`, and the function will return the characters we want.
+
+There are lots of ways to patch binaries. For stuff like this, I like to use `vim` and `xxd` together as a hex editor. Many disassemblers, such as IDA, have built-in functionality for patching binaries as well, which may be a better choice depending on what you're more comfortable with.
+
+First, we have to figure out what actual bytes to overwrite. Unfortunately, `gdb` doesn't show us the opcode bytes for the instructions, so we need to disassemble the program using `objdump`:
 
 	$ objdump -d -M intel 7fcdb7907692cbd6ea87600ab11377b3
 
@@ -558,9 +569,9 @@ There are lots of ways of patching binaries. In a pinch, I like using `vim` and 
 	 80484df:       88 55 ff                mov    BYTE PTR [ebp-0x1],dl
 	[...]
 
-From `objdump`'s disassembly, we can see that the opcode bytes for the instruction `xor eax,ecx` are `31 c8`. We want to overwrite this pattern of bytes with `90 90` throughout the program code. This will replace `xor eax,ecx` with two `nop` instructions.
+From `objdump`'s disassembly, we can see that the opcode bytes for the instruction `xor eax,ecx` are `31 c8`. We want to overwrite this pattern of bytes with `90 90` throughout the program. This will replace `xor eax,ecx` with two `nop` instructions, which will remove the XOR operations entirely from the program.
 
-To do that, I create a copy of the file and open it up in `vim`. Then, I use `vim` and the `xxd` command to obtain a hex dump of the program, and patch it. Here are the steps I use:
+To do that, I create a copy of the binary and open it up in `vim`. Then, I use `vim` and `xxd` together to obtain a hex dump of the program, and make modifications to it. Then I convert the hex dump back to raw binary, and save the patched version of the program. Here are the steps I use:
 
 * Create a new copy of the file so that we still have access to the original one: `cp 7fcdb7907692cbd6ea87600ab11377b3 patched`
 
@@ -572,7 +583,7 @@ To do that, I create a copy of the file and open it up in `vim`. Then, I use `vi
 
 * Replace every instance of `31c8` with `9090`: `:%s/31c8/9090/g`
 
-* Convert the file back to a regular binary: `:%!xxd -r -p`
+* Convert the file back to raw binary: `:%!xxd -r -p`
 
 * Save the modified file and exit `vim`: `:wq`
 
@@ -582,3 +593,5 @@ Now that we've patched out all of the XOR operations, we can try running the pat
 	flag{switch jump pogo pogo bounce}
 
 Success! The flag is: `flag{switch jump pogo pogo bounce}`
+
+Realistically, it may have been faster and easier to just step through the program and collect the `eax` values, but I believe in automating solutions and reducing manual drugery wherever possible.
