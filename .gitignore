@@ -8,7 +8,7 @@ risqué
 # switchy
 switchy.h
 switchy.c
-switchy
+switchy/switchy
 
 # peda output
 peda-*.txt
