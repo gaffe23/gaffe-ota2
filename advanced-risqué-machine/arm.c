@@ -34,8 +34,6 @@ int main()
 	// actually be XORing them to produce the right character values.
 	for(int i = 0; i < 38; i++)
 	{
-		// if you step through and record the values being subtracted and XOR them together,
-		// or just patch the executable to change SUB to EOR, then you'll get the flag.
 		printf("%c", a[i] ^ b[i]);
 	}
 	return 0;
