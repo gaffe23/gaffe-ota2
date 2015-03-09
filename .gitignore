@@ -10,5 +10,6 @@ switchy.h
 switchy.c
 switchy/switchy
 
-# peda output
+# gdb stuff
 peda-*.txt
+.gdb_history
